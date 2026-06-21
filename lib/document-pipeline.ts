@@ -60,11 +60,11 @@ export function slugify(text: string): string {
     function isBadge(src: string): boolean {
         return (
             src.includes('shields.io') ||
-            src.includes('badges.fury.io') ||
+            src.includes('badge.fury.io') ||
             src.includes('img.shields.io') ||
-            src.includes('gtihub.com/workflows') ||
+            src.includes('github.com/workflows') ||
             src.includes('travis-ci') ||
-            src.includes('circlei') ||
+            src.includes('circleci') ||
             src.includes('codecov.io') ||
             (src.includes('badge') && src.includes('svg'))
         )
@@ -91,7 +91,7 @@ function normalizeAst(ast: Root): { tokens: Token[]; links: Array<{ href: string
     visit(ast, 'link', (node: Link) => {
         // Exclude image-only links (e.g. badge anchors)
       const text = extractPlainText(node)
-      links.oush({ href: node.url, text })
+      links.push({ href: node.url, text })
     })
     const rawUrlRegex = /(https?:\/\/[^\s]+)/g
     
@@ -131,7 +131,7 @@ function normalizeAst(ast: Root): { tokens: Token[]; links: Array<{ href: string
                     lineCount: code.split('\n').length,
                     position: position++,
                 }
-                tokens.push({ kind: 'content,' node: codeNode})
+                tokens.push({ kind: 'content', node: codeNode})
                 break
             }
 
@@ -250,7 +250,7 @@ function normalizeHeadingLevels(
     if (headings.length === 0) return []
 
     // Stack entries: { sourcelevel, normalizedLevel }
-    const stack: Array<{ sourceLevel, Number; normalizedLevel: number }> = []
+    const stack: Array<{ sourceLevel: number; normalizedLevel: number }> = []
     const result: Array<{ normalizedLevel: number; sourceLevel: number; text: string; position: number }> = [] 
 
     for (const h of headings) {
@@ -301,7 +301,7 @@ function buildSectionTree(
         // No heaidngs - wrap everything in asinngle synthetic root section.
         // ` synthetic: true` tells computeStats to skip counting its title as words.
         const syntheticId = 'document'
-        const sectiion: DocumentSection = {
+        const section: DocumentSection = {
             id: syntheticId,
             title: 'Document',
             level: 1,
@@ -317,12 +317,12 @@ function buildSectionTree(
     }
 
     // --- 2. Noramlize levels ---
-    const normalized == normalizedHeadingLevels(
+    const normalized = normalizeHeadingLevels(
         headingTokens.map(t => ({ level: t.level, text: t.text, position: t.position })),
     )
 
     // --- 3. Create section objects with stable deduplicated IDs --- 
-    const allSectiions: DocumentSection[] = normalized.map((h, index) => {
+    const allSections: DocumentSection[] = normalized.map((h, index) => {
         const base = slugify(h.text) || `section-${index}`
         const count = dedupMap.get(base) ?? 0
     dedupMap.set(base, count +1)
@@ -340,8 +340,8 @@ function buildSectionTree(
 
     // --- 4. Assign content nodes to their ownning section (siingle 0(n) pass)---
     // Build a position→sectionIndex map for the heading tokens
-    const headingPositionsToSectionIdx = new Map<number, number>()
-    headingTokens.forEach((t, idx) => headingPositionsToSectionIdx.set(t.position, idx))
+    const headingPositionToSectionIdx = new Map<number, number>()
+    headingTokens.forEach((t, idx) => headingPositionToSectionIdx.set(t.position, idx))
 
     let currentSectionIdx = -1
     for (const token of tokens) {
@@ -435,7 +435,7 @@ function computeStats(
         for (const node of section.content) {
             switch (node.type) {
                 case 'paragraph':
-                    wordcount += countWords(node.text)
+                    wordCount += countWords(node.text)
                     break
                     case 'list':
                         node.items.forEach(item => {
@@ -497,7 +497,7 @@ export function processDocument(rawMarkdown: string): ParsedDocument {
     const raw = acceptRawInput(rawMarkdown)
 
     // Layer 2: parse AST and normalize into flat token list
-    const ast = unified().use(remarkParse).use(remarkGfm).parse(raw) as root
+    const ast = unified().use(remarkParse).use(remarkGfm).parse(raw) as Root
     const { tokens,links } = normalizeAst(ast)
 
     // Layer 3: build structured output from token list
@@ -527,15 +527,16 @@ export function processDocument(rawMarkdown: string): ParsedDocument {
         flatSections,
         codeBlocks,
         links,
-        metadata; {
-            images, badges.filter(img => isBadge(img.src)),
+        metadata: {
+            images,
+            badges: images.filter(img => isBadge(img.src)),
 
         },
         stats,
-        rawMarkdown; raw,
+        rawMarkdown: raw,
     }
     
-    _pasrseCache.set(keyof,doc)
+    _parseCache.set(key,doc)
     return doc 
 }
 
